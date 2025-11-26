@@ -354,8 +354,8 @@ scene("game", (level = 0) => {
             player.hasDoubleJump = true; // reset double jump on ground jump
             play("jump");
         } else if (player.hasDoubleJump) {
-            // Double jump at 65% height
-            player.jump(player.jumpHeight * 0.65);
+            // Double jump at 75% height
+            player.jump(player.jumpHeight * 0.75);
             player.hasDoubleJump = false;
             player.isDoubleJumping = true;
             player.spinAngle = 0;
