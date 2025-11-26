@@ -47,6 +47,16 @@ loadSprite("ticket", "assets/ticket.png");
 // Load death sprite
 loadSprite("death", SPRITE_PATH + "fighter_death_0057.png");
 
+// Load sounds
+loadSound("jump", "assets/cartoon-jump-6462.mp3");
+loadSound("doubleJump", "assets/double-jump.mp3");
+loadSound("land", "assets/land-81509.mp3");
+loadSound("run", "assets/running-1-6846.mp3");
+loadSound("hurt", "assets/male_hurt7-48124.mp3");
+loadSound("ticket", "assets/checkin_alert_tone.mp3");
+loadSound("dead", "assets/dead.mp3");
+loadSound("gameover", "assets/game-over-39-199830.mp3");
+
 // Define the level
 const LEVELS = [
     [
@@ -152,6 +162,8 @@ scene("game", (level = 0) => {
             maxHp: 100,
             fallStartY: null,
             isDead: false,
+            runSound: null,
+            wasInAir: false,
         },
         "player",
     ]);
@@ -210,6 +222,18 @@ scene("game", (level = 0) => {
             player.currentAnim = animName;
             player.animFrame = 1;
             player.animTimer = 0;
+
+            // Handle run sound
+            if (animName === "run") {
+                if (!player.runSound) {
+                    player.runSound = play("run", { loop: true });
+                }
+            } else {
+                if (player.runSound) {
+                    player.runSound.stop();
+                    player.runSound = null;
+                }
+            }
         }
     }
 
@@ -248,9 +272,10 @@ scene("game", (level = 0) => {
             player.isDoubleJumping = false;
         }
 
-        // Track fall damage
+        // Track fall damage and landing sound
         if (!player.isGrounded()) {
             // Player is in the air
+            player.wasInAir = true;
             if (player.fallStartY === null) {
                 player.fallStartY = player.pos.y;
             } else if (player.pos.y < player.fallStartY) {
@@ -261,6 +286,13 @@ scene("game", (level = 0) => {
             // Player landed
             if (player.fallStartY !== null) {
                 const fallDistance = player.pos.y - player.fallStartY;
+
+                // Play land sound if fell more than 150px
+                if (player.wasInAir && !player.isDead && fallDistance > 150) {
+                    play("land");
+                }
+                player.wasInAir = false;
+
                 if (fallDistance > 300) {
                     // Base damage of 10hp for falling more than 300px
                     let damage = 10;
@@ -318,12 +350,14 @@ scene("game", (level = 0) => {
         if (player.isGrounded()) {
             player.jump(player.jumpHeight);
             player.hasDoubleJump = true; // reset double jump on ground jump
+            play("jump");
         } else if (player.hasDoubleJump) {
             // Double jump at 65% height
             player.jump(player.jumpHeight * 0.65);
             player.hasDoubleJump = false;
             player.isDoubleJumping = true;
             player.spinAngle = 0;
+            play("doubleJump");
         }
     }
 
@@ -437,6 +471,7 @@ scene("game", (level = 0) => {
         player.hp -= amount;
 
         if (player.hp <= 0) {
+            play("dead");
             player.lives--;
             player.isDead = true;
             livesDisplay.text = "Lives: " + player.lives;
@@ -502,12 +537,18 @@ scene("game", (level = 0) => {
         } else {
             hpBar.color = rgb(255, 0, 0); // Red
         }
+
+        // Play hurt sound only if still alive
+        if (player.hp > 0) {
+            play("hurt");
+        }
     }
 
     // Collect tickets on collision
     player.onCollide("ticket", (ticket) => {
         ticketsCollected++;
         ticketDisplay.text = "Tickets: " + ticketsCollected;
+        play("ticket");
         destroy(ticket);
     });
 
@@ -521,6 +562,8 @@ scene("game", (level = 0) => {
 
 // Game over scene
 scene("gameover", () => {
+    play("gameover");
+
     add([
         rect(width(), height()),
         color(0, 0, 0),
