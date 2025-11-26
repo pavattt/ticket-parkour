@@ -47,6 +47,9 @@ loadSprite("ticket", "assets/ticket.png");
 // Load death sprite
 loadSprite("death", SPRITE_PATH + "fighter_death_0057.png");
 
+// Load parachute sprite
+loadSprite("parachute", SPRITE_PATH + "fighter_parachute.png");
+
 // Load high vibes and george sprites
 loadSprite("highvibes", "assets/high-vibes.png");
 loadSprite("george", "assets/george.png");
@@ -64,6 +67,9 @@ loadSound("gameover", "assets/game-over-39-199830.mp3");
 
 // Player's money (persists across levels)
 let playerMoney = 0;
+
+// Player's inventory (persists across levels)
+let hasParachute = false;
 
 // Define the level
 const LEVELS = [
@@ -84,11 +90,11 @@ const LEVELS = [
         "                    T T T T                                                     ",
         "                   ========                                                     ",
         "                                           T T                                  ",
-        "                                          ====                       S          ",
-        "               T                                                                ",
+        "                                          ====                                  ",
+        "               T                                                      T         ",
         "              ===                                   T T T       =======         ",
         "                          T                              ===                    ",
-        "                         ===                                ß                   ",
+        "                         ===                                                    ",
         "                                    ==   T          ==                          ",
         "        ===       T                                              T T T          ",
         "                    ==                                          ====            ",
@@ -116,9 +122,9 @@ const LEVELS = [
         "                                                                                ",
         "              T T T                              T T T                          ",
         "             ======                             ======                          ",
-        "                                                                                ",
+        "                                                                          S     ",
         "                          T T T T T T                                           ",
-        "                         ============                                           ",
+        "                         ============                               =======     ",
         "        ===                                  ===                  T             ",
         "                  ===            ===                            ===             ",
         "     T T     T T T      ===              ===      T T T                         ",
@@ -238,6 +244,8 @@ scene("game", (level = 0, restoreX = null, restoreY = null, restoreTickets = nul
             isDead: false,
             runSound: null,
             wasInAir: false,
+            parachuteDeployed: false,
+            parachuteAttempting: false,
         },
         "player",
     ]);
@@ -347,6 +355,51 @@ scene("game", (level = 0, restoreX = null, restoreY = null, restoreTickets = nul
             player.isDoubleJumping = false;
         }
 
+        // Parachute mechanics
+        if (hasParachute && !player.isGrounded() && isKeyDown("p") && !player.isDead) {
+            // Check if we need to roll for parachute failure (only on new press)
+            if (!player.parachuteDeployed && !player.parachuteAttempting) {
+                player.parachuteAttempting = true;
+                // 20% chance to fail
+                if (Math.random() < 0.2) {
+                    // Show failure message
+                    const failMsg = add([
+                        text("PARACHUTE FAILED!", { size: 32 }),
+                        pos(player.pos.x, player.pos.y - 60),
+                        anchor("center"),
+                        color(255, 0, 0),
+                        z(100),
+                        lifespan(1),
+                        move(UP, 50),
+                    ]);
+                } else {
+                    player.parachuteDeployed = true;
+                }
+            }
+
+            // If parachute deployed successfully
+            if (player.parachuteDeployed) {
+                // Deploy parachute - slow down fall
+                if (player.vel && player.vel.y > 100) {
+                    player.vel.y = 100; // Limit fall speed when parachute deployed
+                }
+                // Reset fall start to current position so no fall damage accumulates
+                player.fallStartY = player.pos.y;
+                // Use parachute sprite and flip based on facing direction
+                player.use(sprite("parachute"));
+                player.flipX = player.facingRight; // Flip when facing right
+            }
+        } else {
+            // Reset attempt state when P is released (allows retry)
+            if (!isKeyDown("p")) {
+                player.parachuteAttempting = false;
+            }
+            if (player.isGrounded()) {
+                player.parachuteDeployed = false;
+                player.parachuteAttempting = false;
+            }
+        }
+
         // Track fall damage and landing sound
         if (!player.isGrounded()) {
             // Player is in the air
@@ -362,13 +415,13 @@ scene("game", (level = 0, restoreX = null, restoreY = null, restoreTickets = nul
             if (player.fallStartY !== null) {
                 const fallDistance = player.pos.y - player.fallStartY;
 
-                // Play land sound if fell more than 150px
-                if (player.wasInAir && !player.isDead && fallDistance > 150) {
+                // Play land sound if fell more than 150px (not if parachute was just deployed)
+                if (player.wasInAir && !player.isDead && fallDistance > 150 && !player.parachuteDeployed) {
                     play("land");
                 }
                 player.wasInAir = false;
 
-                if (fallDistance > 300) {
+                if (fallDistance > 300 && !player.parachuteDeployed) {
                     // Base damage of 10hp for falling more than 300px
                     let damage = 10;
                     // Additional 5hp for every 20px beyond 300
@@ -377,6 +430,7 @@ scene("game", (level = 0, restoreX = null, restoreY = null, restoreTickets = nul
                     takeDamage(damage);
                 }
                 player.fallStartY = null;
+                player.parachuteDeployed = false;
             }
         }
 
@@ -556,6 +610,17 @@ scene("game", (level = 0, restoreX = null, restoreY = null, restoreTickets = nul
         "moneyDisplay",
     ]);
 
+    // Add parachute indicator if owned
+    if (hasParachute) {
+        add([
+            text("[P] Parachute", { size: 18 }),
+            pos(50, 180),
+            fixed(),
+            color(200, 200, 255),
+            "parachuteIndicator",
+        ]);
+    }
+
     // Find positions of B (Box Office) and S (Tesco) in the level
     let boxOfficePos = null;
     let tescoPos = null;
@@ -728,6 +793,8 @@ scene("game", (level = 0, restoreX = null, restoreY = null, restoreTickets = nul
                 wait(1.5, () => {
                     destroy(redOverlay);
                     destroy(wastedText);
+                    // Lose parachute on death
+                    hasParachute = false;
                     // Reset HP for next life and respawn at initial position
                     player.hp = player.maxHp;
                     player.pos.x = 100;
@@ -742,6 +809,8 @@ scene("game", (level = 0, restoreX = null, restoreY = null, restoreTickets = nul
                     hpBar.width = 100;
                     hpBar.color = rgb(0, 255, 0);
                     hpText.text = "HP: 100";
+                    // Reload scene to update parachute indicator
+                    go("game", level, 100, PLAYER_SPAWN_Y, ticketsCollected, player.lives, player.maxHp);
                 });
             }
         }
@@ -1008,8 +1077,8 @@ scene("tesco", (level, playerX, playerY, tickets, lives, hp) => {
         color(0, 70, 150),
     ]);
 
-    // Money display
-    add([
+    // Money display (will be updated on purchase)
+    const moneyText = add([
         text("Your Money: £" + playerMoney.toFixed(2), {
             size: 32,
         }),
@@ -1028,19 +1097,125 @@ scene("tesco", (level, playerX, playerY, tickets, lives, hp) => {
         color(30, 30, 80),
     ]);
 
+    // Parachute item
+    const parachutePrice = 10.00;
+
+    // Parachute box (background - no area so it doesn't block clicks)
     add([
-        text("Items coming soon...", {
-            size: 24,
-        }),
-        pos(center().x, 280),
+        rect(300, 120),
+        pos(center().x - 50, 340),
         anchor("center"),
-        color(100, 100, 100),
+        color(240, 240, 250),
+        outline(2, rgb(100, 100, 150)),
     ]);
+
+    // Parachute icon
+    add([
+        sprite("parachute"),
+        pos(center().x - 130, 340),
+        anchor("center"),
+        scale(0.25),
+    ]);
+
+    // Parachute name and description
+    add([
+        text("Parachute", { size: 28 }),
+        pos(center().x - 30, 310),
+        anchor("center"),
+        color(30, 30, 80),
+    ]);
+
+    add([
+        text("Hold P while falling", { size: 16 }),
+        pos(center().x - 30, 345),
+        anchor("center"),
+        color(80, 80, 120),
+    ]);
+
+    // Parachute price
+    add([
+        text("£" + parachutePrice.toFixed(2), { size: 24 }),
+        pos(center().x - 30, 375),
+        anchor("center"),
+        color(0, 120, 0),
+    ]);
+
+    // Buy button or owned status - positioned to the right, outside the info box
+    if (hasParachute) {
+        add([
+            rect(100, 50),
+            pos(center().x + 130, 340),
+            anchor("center"),
+            color(100, 100, 100),
+        ]);
+        add([
+            text("OWNED", { size: 18 }),
+            pos(center().x + 130, 340),
+            anchor("center"),
+            color(255, 255, 255),
+        ]);
+    } else {
+        add([
+            rect(100, 50),
+            pos(center().x + 130, 340),
+            anchor("center"),
+            color(playerMoney >= parachutePrice ? rgb(0, 150, 0) : rgb(150, 150, 150)),
+            area(),
+            z(10),
+            "buyParachute",
+        ]);
+        add([
+            text("BUY", { size: 24 }),
+            pos(center().x + 130, 340),
+            anchor("center"),
+            color(255, 255, 255),
+            z(11),
+        ]);
+
+        // Buy parachute click handler
+        onClick("buyParachute", () => {
+            if (playerMoney >= parachutePrice && !hasParachute) {
+                playerMoney -= parachutePrice;
+                hasParachute = true;
+                play("ticket"); // Use ticket sound for purchase
+
+                // Show purchase confirmation
+                const purchaseMsg = add([
+                    text("PURCHASED!", { size: 36 }),
+                    pos(center().x, 260),
+                    anchor("center"),
+                    color(0, 200, 0),
+                    z(100),
+                ]);
+
+                // Flash effect on the item
+                const flash = add([
+                    rect(320, 140),
+                    pos(center().x, 340),
+                    anchor("center"),
+                    color(255, 255, 255),
+                    opacity(0.8),
+                    z(50),
+                ]);
+
+                // Animate flash fade out and then refresh scene
+                let flashOpacity = 0.8;
+                const flashTimer = onUpdate(() => {
+                    flashOpacity -= dt() * 2;
+                    flash.opacity = flashOpacity;
+                    if (flashOpacity <= 0) {
+                        flashTimer.cancel();
+                        go("tesco", level, playerX, playerY, tickets, lives, hp);
+                    }
+                });
+            }
+        });
+    }
 
     // Exit button
     const exitBtn = add([
         rect(160, 50),
-        pos(center().x, 500),
+        pos(center().x, 550),
         anchor("center"),
         color(150, 50, 50),
         area(),
@@ -1051,7 +1226,7 @@ scene("tesco", (level, playerX, playerY, tickets, lives, hp) => {
         text("EXIT", {
             size: 28,
         }),
-        pos(center().x, 500),
+        pos(center().x, 550),
         anchor("center"),
         color(255, 255, 255),
     ]);
