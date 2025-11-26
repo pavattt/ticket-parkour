@@ -124,6 +124,7 @@ scene("game", (level = 0) => {
         body(),
         anchor("center"),
         scale(0.33),
+        rotate(0),
         {
             speed: 320,
             jumpHeight: 640,
@@ -133,6 +134,9 @@ scene("game", (level = 0) => {
             animTimer: 0,
             frameSpeed: 0.1, // seconds per frame
             facingRight: true,
+            hasDoubleJump: true, // can double jump when true
+            isDoubleJumping: false, // true during double jump spin
+            spinAngle: 0, // rotation angle during double jump
         },
         "player",
     ]);
@@ -206,6 +210,26 @@ scene("game", (level = 0) => {
             setAnim("idle");
         }
 
+        // Handle double jump 360 spin
+        if (player.isDoubleJumping) {
+            player.use(sprite("jump_4")); // Use jump_4 sprite while spinning
+            player.use(anchor(vec2(0, 0.35))); // Anchor at character's visual center
+            player.spinAngle += dt() * 720; // 720 degrees per second for fast spin
+            player.angle = player.spinAngle;
+            if (player.spinAngle >= 360) {
+                player.angle = 0;
+                player.use(anchor("center")); // Reset anchor
+                player.isDoubleJumping = false;
+            }
+        }
+
+        // Reset spin when landing
+        if (player.isGrounded() && player.isDoubleJumping) {
+            player.angle = 0;
+            player.use(anchor("center")); // Reset anchor
+            player.isDoubleJumping = false;
+        }
+
         // Camera follows player horizontally
         camPos(vec2(player.pos.x, 360));
 
@@ -237,24 +261,24 @@ scene("game", (level = 0) => {
         player.facingRight = true;
     });
 
-    // Jump
-    onKeyPress("space", () => {
+    // Jump helper function with double jump support
+    function performJump() {
         if (player.isGrounded()) {
             player.jump(player.jumpHeight);
+            player.hasDoubleJump = true; // reset double jump on ground jump
+        } else if (player.hasDoubleJump) {
+            // Double jump at 65% height
+            player.jump(player.jumpHeight * 0.65);
+            player.hasDoubleJump = false;
+            player.isDoubleJumping = true;
+            player.spinAngle = 0;
         }
-    });
+    }
 
-    onKeyPress("up", () => {
-        if (player.isGrounded()) {
-            player.jump(player.jumpHeight);
-        }
-    });
-    
-    onKeyPress("w", () => {
-        if (player.isGrounded()) {
-            player.jump(player.jumpHeight);
-        }
-    });
+    // Jump
+    onKeyPress("space", performJump);
+    onKeyPress("up", performJump);
+    onKeyPress("w", performJump);
 
     // Squat/Crouch
     onKeyDown("down", () => {
