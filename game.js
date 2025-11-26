@@ -219,7 +219,7 @@ scene("game", (level = 0, restoreX = null, restoreY = null, restoreTickets = nul
     const player = add([
         pos(startX, startY),
         sprite("idle_1"),
-        area({ shape: new Rect(vec2(0), 40, 70), offset: vec2(0, 89) }),
+        area({ shape: new Rect(vec2(0), 40, 70), offset: vec2(0, 35) }),
         body(),
         anchor("center"),
         scale(0.33),
@@ -398,6 +398,12 @@ scene("game", (level = 0, restoreX = null, restoreY = null, restoreTickets = nul
                 player.parachuteDeployed = false;
                 player.parachuteAttempting = false;
             }
+        }
+
+        // Clamp maximum fall velocity to prevent falling through platforms
+        const MAX_FALL_SPEED = 600;
+        if (player.vel && player.vel.y > MAX_FALL_SPEED) {
+            player.vel.y = MAX_FALL_SPEED;
         }
 
         // Track fall damage and landing sound
