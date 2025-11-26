@@ -47,6 +47,11 @@ loadSprite("ticket", "assets/ticket.png");
 // Load death sprite
 loadSprite("death", SPRITE_PATH + "fighter_death_0057.png");
 
+// Load high vibes and george sprites
+loadSprite("highvibes", "assets/high-vibes.png");
+loadSprite("george", "assets/george.png");
+loadSprite("tesco", "assets/tesco.png");
+
 // Load sounds
 loadSound("jump", "assets/cartoon-jump-6462.mp3");
 loadSound("doubleJump", "assets/double-jump.mp3");
@@ -57,14 +62,17 @@ loadSound("ticket", "assets/checkin_alert_tone.mp3");
 loadSound("dead", "assets/dead.mp3");
 loadSound("gameover", "assets/game-over-39-199830.mp3");
 
+// Player's money (persists across levels)
+let playerMoney = 0;
+
 // Define the level
 const LEVELS = [
     [
         "                                                                                ",
         "                                 T T T                                          ",
-        "                                ======                                          ",
+        "                                ======                               B          ",
         "                                                                                ",
-        "          T T                                      T T                          ",
+        "          T T                                      T T          =====           ",
         "         =====                                    =====                         ",
         "                                                                                ",
         "                       T T T T                                                  ",
@@ -76,19 +84,55 @@ const LEVELS = [
         "                    T T T T                                                     ",
         "                   ========                                                     ",
         "                                           T T                                  ",
-        "                                          ====                                  ",
+        "                                          ====                       S          ",
         "               T                                                                ",
-        "              ===                                   T T T                       ",
+        "              ===                                   T T T       =======         ",
         "                          T                              ===                    ",
-        "                         ===                                                    ",
+        "                         ===                                ß                   ",
         "                                    ==   T          ==                          ",
         "        ===       T                                              T T T          ",
         "                    ==                                          ====            ",
-        "   T T T                    ==                                                  ",
+        "     T T     TTT             ==                                                 ",
+        "################################################################################",
+        "################################################################################",
+    ],
+    [
+        "                                                   B                            ",
+        "                                                 ======                         ",
+        "    T T T                                                          T T T        ",
+        "   ======                                                         ======        ",
+        "                                                                                ",
+        "                  T T T                              T T T                      ",
+        "                 ======                             ======                      ",
+        "                                                                                ",
+        "         T T T T                    T T T T                                     ",
+        "        =========                  =========                                    ",
+        "                                                                                ",
+        "                         T T T T T                                              ",
+        "                        ===========                                             ",
+        "                                                                                ",
+        "    T T                                                      T T                ",
+        "   ====                                                     ====                ",
+        "                                                                                ",
+        "              T T T                              T T T                          ",
+        "             ======                             ======                          ",
+        "                                                                                ",
+        "                          T T T T T T                                           ",
+        "                         ============                                           ",
+        "        ===                                  ===                  T             ",
+        "                  ===            ===                            ===             ",
+        "     T T     T T T      ===              ===      T T T                         ",
         "################################################################################",
         "################################################################################",
     ],
 ];
+
+// Level height in rows
+const LEVEL_HEIGHT = LEVELS[0].length;
+// Ground row index (0-indexed from top) - the first # row
+const GROUND_ROW = LEVEL_HEIGHT - 2; // -2 because there are 2 rows of ground
+// Player spawn Y position (above the ground)
+const PLAYER_SPAWN_Y = GROUND_ROW * 32 - 50;
 
 // Level configuration
 const levelConfig = {
@@ -122,23 +166,52 @@ const levelConfig = {
             },
             "ticket",
         ],
+        "B": () => [
+            sprite("highvibes"),
+            area(),
+            anchor("center"),
+            scale(0.15),
+            z(10),
+            "levelEnd",
+        ],
+        "S": () => [
+            sprite("tesco"),
+            area(),
+            anchor("center"),
+            scale(0.15),
+            z(10),
+            "tescoStore",
+        ],
     },
 };
 
 // Game scene
-scene("game", (level = 0) => {
+scene("game", (level = 0, restoreX = null, restoreY = null, restoreTickets = null, restoreLives = null, restoreHp = null) => {
     // Set gravity
     setGravity(1600);
 
     // Score counter
-    let ticketsCollected = 0;
+    let ticketsCollected = restoreTickets !== null ? restoreTickets : 0;
+
+    // Count total tickets in level
+    let totalTickets = 0;
+    for (const row of LEVELS[level]) {
+        for (const char of row) {
+            if (char === "T") totalTickets++;
+        }
+    }
 
     // Add the level
     const currentLevel = addLevel(LEVELS[level], levelConfig);
 
     // Add the player with sprite animations
+    const startX = restoreX !== null ? restoreX : 100;
+    const startY = restoreY !== null ? restoreY : PLAYER_SPAWN_Y;
+    const startLives = restoreLives !== null ? restoreLives : 3;
+    const startHp = restoreHp !== null ? restoreHp : 100;
+
     const player = add([
-        pos(100, 700),
+        pos(startX, startY),
         sprite("idle_1"),
         area({ shape: new Rect(vec2(0), 40, 70), offset: vec2(0, 89) }),
         body(),
@@ -158,8 +231,8 @@ scene("game", (level = 0) => {
             isDoubleJumping: false, // true during double jump spin
             spinAngle: 0, // rotation angle during double jump
             spinDirection: 1, // 1 for clockwise, -1 for counter-clockwise
-            lives: 3,
-            hp: 100,
+            lives: startLives,
+            hp: startHp,
             maxHp: 100,
             fallStartY: null,
             isDead: false,
@@ -281,7 +354,7 @@ scene("game", (level = 0) => {
             if (player.fallStartY === null) {
                 player.fallStartY = player.pos.y;
             } else if (player.pos.y < player.fallStartY) {
-                // Player went higher, update fall start
+                // Player went higher (Y decreased), update fall start
                 player.fallStartY = player.pos.y;
             }
         } else {
@@ -312,8 +385,8 @@ scene("game", (level = 0) => {
             camPos(vec2(player.pos.x, player.pos.y));
         }
 
-        // Player falls off the map - lose a life
-        if (player.pos.y > 1000 && !player.isDead) {
+        // Player falls off the map - lose a life (fell below ground level)
+        if (player.pos.y > LEVEL_HEIGHT * 32 + 100 && !player.isDead) {
             player.isDead = true;
             player.hp = 0;
             takeDamage(0); // Trigger the wasted/death logic
@@ -421,7 +494,7 @@ scene("game", (level = 0) => {
 
     // Add ticket counter display
     const ticketDisplay = add([
-        text("Tickets: 0", {
+        text("Tickets: " + ticketsCollected + " / " + totalTickets, {
             size: 24,
         }),
         pos(50, 60),
@@ -432,7 +505,7 @@ scene("game", (level = 0) => {
 
     // Add lives display
     const livesDisplay = add([
-        text("Lives: 3", {
+        text("Lives: " + startLives, {
             size: 24,
         }),
         pos(50, 90),
@@ -451,23 +524,36 @@ scene("game", (level = 0) => {
     ]);
 
     // Add HP bar
+    const hpBarWidth = (startHp / 100) * 100;
+    const hpBarColor = startHp > 60 ? rgb(0, 255, 0) : startHp > 30 ? rgb(255, 255, 0) : rgb(255, 0, 0);
     const hpBar = add([
-        rect(100, 10),
+        rect(hpBarWidth, 10),
         pos(50, 120),
         fixed(),
-        color(0, 255, 0),
+        color(hpBarColor),
         "hpBar",
     ]);
 
     // Add HP text
     const hpText = add([
-        text("HP: 100", {
+        text("HP: " + startHp, {
             size: 16,
         }),
         pos(160, 118),
         fixed(),
         color(255, 255, 255),
         "hpText",
+    ]);
+
+    // Add money display
+    const moneyDisplay = add([
+        text("Money: £" + playerMoney.toFixed(2), {
+            size: 24,
+        }),
+        pos(50, 150),
+        fixed(),
+        color(0, 200, 0),
+        "moneyDisplay",
     ]);
 
     // Function to take damage
@@ -516,7 +602,9 @@ scene("game", (level = 0) => {
                     // Reset HP for next life and respawn at initial position
                     player.hp = player.maxHp;
                     player.pos.x = 100;
-                    player.pos.y = 700;
+                    player.pos.y = PLAYER_SPAWN_Y;
+                    // Stop all velocity so player doesn't keep falling
+                    player.vel = vec2(0, 0);
                     player.fallStartY = null;
                     player.isDead = false;
                     // Reset sprite to idle
@@ -551,9 +639,29 @@ scene("game", (level = 0) => {
     // Collect tickets on collision
     player.onCollide("ticket", (ticket) => {
         ticketsCollected++;
-        ticketDisplay.text = "Tickets: " + ticketsCollected;
+        ticketDisplay.text = "Tickets: " + ticketsCollected + " / " + totalTickets;
         play("ticket");
         destroy(ticket);
+    });
+
+    // Level complete on collision with high vibes
+    player.onCollide("levelEnd", () => {
+        // Stop run sound if playing
+        if (player.runSound) {
+            player.runSound.stop();
+            player.runSound = null;
+        }
+        go("store", ticketsCollected, level);
+    });
+
+    // Enter Tesco store
+    player.onCollide("tescoStore", () => {
+        // Stop run sound if playing
+        if (player.runSound) {
+            player.runSound.stop();
+            player.runSound = null;
+        }
+        go("tesco", level, player.pos.x, player.pos.y, ticketsCollected, player.lives, player.hp);
     });
 
     // Spin all tickets
@@ -593,6 +701,280 @@ scene("gameover", () => {
     ]);
 
     onKeyPress("space", () => {
+        go("game", 0);
+    });
+});
+
+// Store scene
+scene("store", (tickets = 0, level = 0) => {
+    // Price per ticket increases with level
+    const pricePerTicket = 1.00 + (level * 0.50);
+    const totalValue = (tickets * pricePerTicket).toFixed(2);
+    // Store background
+    add([
+        rect(width(), height()),
+        color(255, 200, 220),
+        fixed(),
+    ]);
+
+    // Store title
+    add([
+        text("High Vibes Box Office", {
+            size: 56,
+            font: "sans-serif",
+        }),
+        pos(center().x, 80),
+        anchor("center"),
+        color(255, 105, 180),
+    ]);
+
+    // George standing in the store
+    add([
+        sprite("george"),
+        pos(center().x - 200, center().y + 100),
+        anchor("center"),
+        scale(0.5),
+    ]);
+
+    // George's congratulations message
+    add([
+        text("Congrats! You collected " + tickets + " tickets!", {
+            size: 28,
+        }),
+        pos(center().x + 280, 200),
+        anchor("center"),
+        color(30, 30, 80),
+    ]);
+
+    // George's offer
+    add([
+        text("I can sell them for you in exchange for money.", {
+            size: 24,
+        }),
+        pos(center().x + 280, 250),
+        anchor("center"),
+        color(60, 60, 100),
+    ]);
+
+    // Ticket count display
+    add([
+        sprite("ticket"),
+        pos(center().x + 220, 320),
+        anchor("center"),
+        scale(0.08),
+    ]);
+
+    add([
+        text("x " + tickets, {
+            size: 32,
+        }),
+        pos(center().x + 280, 320),
+        anchor("center"),
+        color(180, 50, 100),
+    ]);
+
+    // Price info
+    add([
+        text("Price per ticket: £" + pricePerTicket.toFixed(2), {
+            size: 22,
+        }),
+        pos(center().x + 280, 380),
+        anchor("center"),
+        color(60, 60, 100),
+    ]);
+
+    // Total value
+    add([
+        text("Total value: £" + totalValue, {
+            size: 28,
+        }),
+        pos(center().x + 280, 420),
+        anchor("center"),
+        color(0, 120, 0),
+    ]);
+
+    // Question
+    add([
+        text("Do you want to sell your tickets?", {
+            size: 26,
+        }),
+        pos(center().x + 280, 480),
+        anchor("center"),
+        color(30, 30, 80),
+    ]);
+
+    // Yes button
+    const yesBtn = add([
+        rect(120, 50),
+        pos(center().x + 200, 550),
+        anchor("center"),
+        color(0, 150, 0),
+        area(),
+        "yesBtn",
+    ]);
+
+    add([
+        text("YES", {
+            size: 24,
+        }),
+        pos(center().x + 200, 550),
+        anchor("center"),
+        color(255, 255, 255),
+    ]);
+
+    // No button
+    const noBtn = add([
+        rect(120, 50),
+        pos(center().x + 360, 550),
+        anchor("center"),
+        color(150, 0, 0),
+        area(),
+        "noBtn",
+    ]);
+
+    add([
+        text("NO", {
+            size: 24,
+        }),
+        pos(center().x + 360, 550),
+        anchor("center"),
+        color(255, 255, 255),
+    ]);
+
+    // Click handlers
+    onClick("yesBtn", () => {
+        playerMoney += parseFloat(totalValue);
+        if (level + 1 < LEVELS.length) {
+            go("game", level + 1);
+        } else {
+            go("win");
+        }
+    });
+
+    onClick("noBtn", () => {
+        if (level + 1 < LEVELS.length) {
+            go("game", level + 1);
+        } else {
+            go("win");
+        }
+    });
+});
+
+// Tesco store scene
+scene("tesco", (level, playerX, playerY, tickets, lives, hp) => {
+    // Store background
+    add([
+        rect(width(), height()),
+        color(200, 220, 255),
+        fixed(),
+    ]);
+
+    // Store title
+    add([
+        text("TESCO", {
+            size: 64,
+        }),
+        pos(center().x, 80),
+        anchor("center"),
+        color(0, 70, 150),
+    ]);
+
+    // Money display
+    add([
+        text("Your Money: £" + playerMoney.toFixed(2), {
+            size: 32,
+        }),
+        pos(center().x, 150),
+        anchor("center"),
+        color(0, 150, 0),
+    ]);
+
+    // Store message
+    add([
+        text("Welcome to Tesco!", {
+            size: 28,
+        }),
+        pos(center().x, 220),
+        anchor("center"),
+        color(30, 30, 80),
+    ]);
+
+    add([
+        text("Items coming soon...", {
+            size: 24,
+        }),
+        pos(center().x, 280),
+        anchor("center"),
+        color(100, 100, 100),
+    ]);
+
+    // Exit button
+    const exitBtn = add([
+        rect(160, 50),
+        pos(center().x, 500),
+        anchor("center"),
+        color(150, 50, 50),
+        area(),
+        "exitBtn",
+    ]);
+
+    add([
+        text("EXIT", {
+            size: 28,
+        }),
+        pos(center().x, 500),
+        anchor("center"),
+        color(255, 255, 255),
+    ]);
+
+    // Click handler for exit - offset player to the left to avoid re-entering
+    onClick("exitBtn", () => {
+        go("game", level, playerX - 50, playerY, tickets, lives, hp);
+    });
+
+    // Also allow ESC to exit
+    onKeyPress("escape", () => {
+        go("game", level, playerX - 50, playerY, tickets, lives, hp);
+    });
+});
+
+// Win scene
+scene("win", () => {
+    add([
+        rect(width(), height()),
+        color(50, 200, 50),
+        fixed(),
+    ]);
+
+    add([
+        text("YOU WIN!", {
+            size: 72,
+        }),
+        pos(center().x, center().y - 50),
+        anchor("center"),
+        color(255, 255, 255),
+    ]);
+
+    add([
+        text("Total Money: £" + playerMoney.toFixed(2), {
+            size: 36,
+        }),
+        pos(center().x, center().y + 30),
+        anchor("center"),
+        color(255, 215, 0),
+    ]);
+
+    add([
+        text("Press SPACE to play again", {
+            size: 24,
+        }),
+        pos(center().x, center().y + 100),
+        anchor("center"),
+        color(255, 255, 255),
+    ]);
+
+    onKeyPress("space", () => {
+        playerMoney = 0;
         go("game", 0);
     });
 });
