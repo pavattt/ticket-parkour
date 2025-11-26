@@ -556,6 +556,135 @@ scene("game", (level = 0, restoreX = null, restoreY = null, restoreTickets = nul
         "moneyDisplay",
     ]);
 
+    // Find positions of B (Box Office) and S (Tesco) in the level
+    let boxOfficePos = null;
+    let tescoPos = null;
+    for (let row = 0; row < LEVELS[level].length; row++) {
+        for (let col = 0; col < LEVELS[level][row].length; col++) {
+            const char = LEVELS[level][row][col];
+            if (char === "B") {
+                boxOfficePos = vec2(col * 32 + 16, row * 32 + 16);
+            } else if (char === "S") {
+                tescoPos = vec2(col * 32 + 16, row * 32 + 16);
+            }
+        }
+    }
+
+    // Create directional arrow indicators
+    const arrowSize = 30;
+    const arrowPadding = 50;
+
+    // Box Office arrow (pink/magenta for High Vibes)
+    const boxOfficeArrow = add([
+        text("B ►", { size: arrowSize }),
+        pos(0, 0),
+        fixed(),
+        color(255, 105, 180),
+        z(50),
+        opacity(0.9),
+        { targetPos: boxOfficePos, label: "B" },
+        "dirArrow",
+    ]);
+
+    // Tesco arrow (blue for Tesco)
+    const tescoArrow = add([
+        text("T ►", { size: arrowSize }),
+        pos(0, 0),
+        fixed(),
+        color(0, 100, 200),
+        z(50),
+        opacity(0.9),
+        { targetPos: tescoPos, label: "T" },
+        "dirArrow",
+    ]);
+
+    // Update directional arrows each frame
+    onUpdate("dirArrow", (arrow) => {
+        if (!arrow.targetPos) {
+            arrow.hidden = true;
+            return;
+        }
+
+        // Get camera position and screen bounds
+        const cam = camPos();
+        const screenW = width() / camScale().x;
+        const screenH = height() / camScale().y;
+
+        // Calculate screen bounds in world coordinates
+        const leftBound = cam.x - screenW / 2;
+        const rightBound = cam.x + screenW / 2;
+        const topBound = cam.y - screenH / 2;
+        const bottomBound = cam.y + screenH / 2;
+
+        // Check if target is visible on screen (with some margin)
+        const margin = 60;
+        const targetVisible = (
+            arrow.targetPos.x > leftBound + margin &&
+            arrow.targetPos.x < rightBound - margin &&
+            arrow.targetPos.y > topBound + margin &&
+            arrow.targetPos.y < bottomBound - margin
+        );
+
+        if (targetVisible) {
+            arrow.hidden = true;
+            return;
+        }
+
+        arrow.hidden = false;
+
+        // Calculate direction from center of screen to target
+        const dx = arrow.targetPos.x - cam.x;
+        const dy = arrow.targetPos.y - cam.y;
+        const angle = Math.atan2(dy, dx);
+
+        // Determine which edge to place the arrow on
+        // and calculate the arrow character
+        let arrowChar = "►";
+        let screenX, screenY;
+
+        // Calculate intersection with screen edges
+        const halfW = width() / 2 - arrowPadding;
+        const halfH = height() / 2 - arrowPadding;
+
+        // Use angle to determine primary direction and position
+        if (Math.abs(dx) > Math.abs(dy)) {
+            // Primarily horizontal
+            if (dx > 0) {
+                // Target is to the right
+                arrowChar = "►";
+                screenX = width() - arrowPadding;
+                screenY = height() / 2 + (dy / dx) * halfW;
+            } else {
+                // Target is to the left
+                arrowChar = "◄";
+                screenX = arrowPadding;
+                screenY = height() / 2 - (dy / dx) * halfW;
+            }
+        } else {
+            // Primarily vertical
+            if (dy > 0) {
+                // Target is below
+                arrowChar = "▼";
+                screenY = height() - arrowPadding;
+                screenX = width() / 2 + (dx / dy) * halfH;
+            } else {
+                // Target is above
+                arrowChar = "▲";
+                screenY = 10;
+                screenX = width() / 2 - (dx / dy) * halfH;
+            }
+        }
+
+        // Clamp to screen bounds - top edge at 10px for vertical arrows
+        screenX = Math.max(arrowPadding, Math.min(width() - arrowPadding, screenX));
+        screenY = Math.max(10, Math.min(height() - arrowPadding, screenY));
+
+        // Update arrow (no distance numbers)
+        arrow.text = arrow.label + " " + arrowChar;
+        arrow.pos.x = screenX;
+        arrow.pos.y = screenY;
+    });
+
     // Function to take damage
     function takeDamage(amount) {
         player.hp -= amount;
