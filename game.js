@@ -157,6 +157,7 @@ scene("game", (level = 0) => {
             hasDoubleJump: true, // can double jump when true
             isDoubleJumping: false, // true during double jump spin
             spinAngle: 0, // rotation angle during double jump
+            spinDirection: 1, // 1 for clockwise, -1 for counter-clockwise
             lives: 3,
             hp: 100,
             maxHp: 100,
@@ -256,9 +257,10 @@ scene("game", (level = 0) => {
         if (player.isDoubleJumping) {
             player.use(sprite("jump_4")); // Use jump_4 sprite while spinning
             player.use(anchor(vec2(0, 0.35))); // Anchor at character's visual center
-            player.spinAngle += dt() * 720; // 720 degrees per second for fast spin
+            // Use stored spin direction (captured at start of double jump)
+            player.spinAngle += dt() * 720 * player.spinDirection; // 720 degrees per second for fast spin
             player.angle = player.spinAngle;
-            if (player.spinAngle >= 360) {
+            if (Math.abs(player.spinAngle) >= 360) {
                 player.angle = 0;
                 player.use(anchor("center")); // Reset anchor
                 player.isDoubleJumping = false;
@@ -357,6 +359,8 @@ scene("game", (level = 0) => {
             player.hasDoubleJump = false;
             player.isDoubleJumping = true;
             player.spinAngle = 0;
+            // Capture spin direction at start: right = clockwise, left = counter-clockwise
+            player.spinDirection = player.facingRight ? 1 : -1;
             play("doubleJump");
         }
     }
