@@ -41,6 +41,9 @@ loadSprite("player", SPRITE_PATH + "fighter_Idle_0001.png", {
 // Actually load all frames into a single spritesheet
 loadSprite("hero", SPRITE_PATH + "fighter_Idle_0001.png");
 
+// Load ticket sprite
+loadSprite("ticket", "assets/ticket.png");
+
 // Define the level
 const LEVELS = [
     [
@@ -50,17 +53,18 @@ const LEVELS = [
         "                                                                                ",
         "                                                                                ",
         "                                                                                ",
-        "                                                                                ",
+        "                    T T T T                                                     ",
         "                   ========                                                     ",
-        "                                                                                ",
+        "                                           T T                                  ",
         "                                          ====                                 ",
-        "              ===                                                               ",
-        "                                                         ===                    ",
+        "               T                                                                ",
+        "              ===                                   T T T                       ",
+        "                          T                              ===                    ",
         "                         ===                                                    ",
-        "                                    ==              ==                         ",
-        "        ===                                                      ====           ",
-        "                    ==                                                          ",
-        "                            ==                                                  ",
+        "                                    ==   T          ==                         ",
+        "        ===       T                                              T T T          ",
+        "                    ==                                          ====           ",
+        "   T T T                    ==                                                  ",
         "################################################################################",
         "################################################################################",
     ],
@@ -87,6 +91,17 @@ const levelConfig = {
             anchor("center"),
             "ground",
         ],
+        "T": () => [
+            sprite("ticket"),
+            area(),
+            anchor("center"),
+            scale(0.06),
+            {
+                spinTimer: 0,
+                spinSpeed: 3,
+            },
+            "ticket",
+        ],
     },
 };
 
@@ -94,6 +109,9 @@ const levelConfig = {
 scene("game", (level = 0) => {
     // Set gravity
     setGravity(1600);
+
+    // Score counter
+    let ticketsCollected = 0;
 
     // Add the level
     const currentLevel = addLevel(LEVELS[level], levelConfig);
@@ -276,6 +294,31 @@ scene("game", (level = 0) => {
         fixed(),
         color(255, 255, 255),
     ]);
+
+    // Add ticket counter display
+    const ticketDisplay = add([
+        text("Tickets: 0", {
+            size: 24,
+        }),
+        pos(50, 60),
+        fixed(),
+        color(255, 215, 0),
+        "ticketDisplay",
+    ]);
+
+    // Collect tickets on collision
+    player.onCollide("ticket", (ticket) => {
+        ticketsCollected++;
+        ticketDisplay.text = "Tickets: " + ticketsCollected;
+        destroy(ticket);
+    });
+
+    // Spin all tickets
+    onUpdate("ticket", (ticket) => {
+        ticket.spinTimer += dt() * ticket.spinSpeed;
+        // Use cosine to create a smooth scale oscillation (1 to -1 to 1)
+        ticket.scaleTo(0.06 * Math.cos(ticket.spinTimer), 0.06);
+    });
 });
 
 // Start the game
