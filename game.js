@@ -125,7 +125,7 @@ scene("game", (level = 0) => {
 
     // Add the player with sprite animations
     const player = add([
-        pos(100, 300),
+        pos(100, 700),
         sprite("idle_1"),
         area({ shape: new Rect(vec2(0), 40, 70), offset: vec2(0, 89) }),
         body(),
