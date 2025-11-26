@@ -1283,5 +1283,106 @@ scene("win", () => {
     });
 });
 
-// Start the game
-go("game", 0);
+// Start screen scene
+scene("start", () => {
+    // Background
+    add([
+        rect(width(), height()),
+        color(50, 50, 80),
+        fixed(),
+    ]);
+
+    // Title
+    add([
+        text("Ticket Runner", { size: 72 }),
+        pos(center().x, 80),
+        anchor("center"),
+        color(255, 215, 0),
+    ]);
+
+    // Story/objective
+    add([
+        text("Collect tickets and sell them at the Box Office!", { size: 24 }),
+        pos(center().x, 160),
+        anchor("center"),
+        color(255, 255, 255),
+    ]);
+
+    // Controls section
+    add([
+        text("CONTROLS", { size: 32 }),
+        pos(center().x, 230),
+        anchor("center"),
+        color(255, 200, 100),
+    ]);
+
+    // Control instructions
+    const controls = [
+        "Arrow Keys / WASD - Move",
+        "Space / W / Up - Jump (press again for double jump)",
+        "Down / S - Crouch",
+        "P - Deploy parachute (when owned)",
+    ];
+
+    controls.forEach((ctrl, i) => {
+        add([
+            text(ctrl, { size: 20 }),
+            pos(center().x, 280 + i * 35),
+            anchor("center"),
+            color(200, 200, 220),
+        ]);
+    });
+
+    // Tips section
+    add([
+        text("TIPS", { size: 32 }),
+        pos(center().x, 440),
+        anchor("center"),
+        color(255, 200, 100),
+    ]);
+
+    const tips = [
+        "B - Box Office: Sell your tickets for money",
+        "T - Tesco: Buy items like the parachute",
+        "Watch out for fall damage from high drops!",
+    ];
+
+    tips.forEach((tip, i) => {
+        add([
+            text(tip, { size: 18 }),
+            pos(center().x, 490 + i * 30),
+            anchor("center"),
+            color(200, 200, 220),
+        ]);
+    });
+
+    // Start button
+    add([
+        rect(200, 60),
+        pos(center().x, 620),
+        anchor("center"),
+        color(0, 150, 0),
+        area(),
+        "startBtn",
+    ]);
+
+    add([
+        text("START", { size: 32 }),
+        pos(center().x, 620),
+        anchor("center"),
+        color(255, 255, 255),
+    ]);
+
+    // Click to start
+    onClick("startBtn", () => {
+        go("game", 0);
+    });
+
+    // Also allow space to start
+    onKeyPress("space", () => {
+        go("game", 0);
+    });
+});
+
+// Start the game at start screen
+go("start");
