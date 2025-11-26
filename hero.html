@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Hero Sprite Generator</title>
+</head>
+<body>
+    <canvas id="canvas" width="32" height="48"></canvas>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Clear canvas
+        ctx.fillStyle = 'transparent';
+        ctx.fillRect(0, 0, 32, 48);
+        
+        // Draw a simple human figure
+        // Head (skin color)
+        ctx.fillStyle = '#FFD4A3';
+        ctx.beginPath();
+        ctx.arc(16, 10, 8, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Body (blue shirt)
+        ctx.fillStyle = '#4169E1';
+        ctx.fillRect(10, 18, 12, 16);
+        
+        // Arms (skin color)
+        ctx.fillStyle = '#FFD4A3';
+        ctx.fillRect(6, 20, 4, 12);
+        ctx.fillRect(22, 20, 4, 12);
+        
+        // Legs (dark green pants)
+        ctx.fillStyle = '#2F4F2F';
+        ctx.fillRect(11, 34, 5, 10);
+        ctx.fillRect(16, 34, 5, 10);
+        
+        // Shoes (black)
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(11, 44, 5, 4);
+        ctx.fillRect(16, 44, 5, 4);
+        
+        // Eyes
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(12, 8, 2, 2);
+        ctx.fillRect(18, 8, 2, 2);
+        
+        // Convert to base64
+        console.log(canvas.toDataURL());
+    </script>
+</body>
+</html>

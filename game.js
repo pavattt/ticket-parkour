@@ -5,9 +5,41 @@ kaboom({
     background: [134, 185, 255],
 });
 
-// Load sprites - using simple colored rectangles for now
-loadRoot("");
-loadBean();
+// Load sprite animations
+const SPRITE_PATH = "assets/Stick Figure Character Sprites 2D/Fighter sprites/";
+
+// Load idle animation (8 frames)
+loadSprite("idle", SPRITE_PATH + "fighter_Idle_0001.png");
+for (let i = 1; i <= 8; i++) {
+    loadSprite(`idle_${i}`, SPRITE_PATH + `fighter_Idle_000${i}.png`);
+}
+
+// Load run animation (8 frames)
+for (let i = 17; i <= 24; i++) {
+    loadSprite(`run_${i - 16}`, SPRITE_PATH + `fighter_run_00${i}.png`);
+}
+
+// Load jump animation (5 frames)
+for (let i = 43; i <= 47; i++) {
+    loadSprite(`jump_${i - 42}`, SPRITE_PATH + `fighter_jump_00${i}.png`);
+}
+
+// Load slide/crouch animation (8 frames)
+for (let i = 25; i <= 32; i++) {
+    loadSprite(`slide_${i - 24}`, SPRITE_PATH + `fighter_slide_00${i}.png`);
+}
+
+// Load as sprite sheets with animations
+loadSprite("player", SPRITE_PATH + "fighter_Idle_0001.png", {
+    sliceX: 1,
+    sliceY: 1,
+    anims: {
+        idle: { from: 0, to: 0 },
+    },
+});
+
+// Actually load all frames into a single spritesheet
+loadSprite("hero", SPRITE_PATH + "fighter_Idle_0001.png");
 
 // Define the level
 const LEVELS = [
@@ -66,43 +98,125 @@ scene("game", (level = 0) => {
     // Add the level
     const currentLevel = addLevel(LEVELS[level], levelConfig);
 
-    // Add the player
+    // Add the player with sprite animations
     const player = add([
-        rect(32, 32),
-        color(255, 0, 0),
         pos(100, 300),
-        area(),
+        sprite("idle_1"),
+        area({ shape: new Rect(vec2(0), 40, 70), offset: vec2(0, 89) }),
         body(),
         anchor("center"),
-        scale(1),
+        scale(0.33),
         {
             speed: 320,
             jumpHeight: 640,
             isSquatting: false,
+            currentAnim: "idle",
+            animFrame: 1,
+            animTimer: 0,
+            frameSpeed: 0.1, // seconds per frame
+            facingRight: true,
         },
         "player",
     ]);
 
+    // Animation update function
+    function updatePlayerAnimation(dt) {
+        player.animTimer += dt;
+
+        if (player.animTimer >= player.frameSpeed) {
+            player.animTimer = 0;
+
+            let maxFrames = 8;
+            let spritePrefix = "idle_";
+
+            if (player.currentAnim === "run") {
+                maxFrames = 8;
+                spritePrefix = "run_";
+                player.frameSpeed = 0.08;
+            } else if (player.currentAnim === "jump") {
+                maxFrames = 5;
+                spritePrefix = "jump_";
+                player.frameSpeed = 0.12;
+            } else if (player.currentAnim === "slide") {
+                maxFrames = 8;
+                spritePrefix = "slide_";
+                player.frameSpeed = 0.1;
+            } else {
+                // idle
+                maxFrames = 8;
+                spritePrefix = "idle_";
+                player.frameSpeed = 0.12;
+            }
+
+            player.animFrame++;
+            if (player.animFrame > maxFrames) {
+                player.animFrame = 1;
+            }
+
+            player.use(sprite(spritePrefix + player.animFrame));
+        }
+
+        // Flip sprite based on direction
+        if (player.facingRight) {
+            player.flipX = false;
+        } else {
+            player.flipX = true;
+        }
+    }
+
+    // Set animation state
+    function setAnim(animName) {
+        if (player.currentAnim !== animName) {
+            player.currentAnim = animName;
+            player.animFrame = 1;
+            player.animTimer = 0;
+        }
+    }
+
+    // Update animation each frame
+    onUpdate(() => {
+        updatePlayerAnimation(dt());
+
+        // Determine animation based on state
+        if (!player.isGrounded()) {
+            setAnim("jump");
+        } else if (player.isSquatting) {
+            setAnim("slide");
+        } else if (isKeyDown("left") || isKeyDown("right") || isKeyDown("a") || isKeyDown("d")) {
+            setAnim("run");
+        } else {
+            setAnim("idle");
+        }
+
+        // Camera follows player horizontally
+        camPos(vec2(player.pos.x, 360));
+
+        // Reset if player falls
+        if (player.pos.y > 1000) {
+            go("game", level);
+        }
+    });
+
     // Left movement
     onKeyDown("left", () => {
         player.move(-player.speed, 0);
-        player.scaleX = Math.abs(player.scale.x) * -1;
+        player.facingRight = false;
     });
-    
+
     onKeyDown("a", () => {
         player.move(-player.speed, 0);
-        player.scaleX = Math.abs(player.scale.x) * -1;
+        player.facingRight = false;
     });
 
     // Right movement
     onKeyDown("right", () => {
         player.move(player.speed, 0);
-        player.scaleX = Math.abs(player.scale.x);
+        player.facingRight = true;
     });
-    
+
     onKeyDown("d", () => {
         player.move(player.speed, 0);
-        player.scaleX = Math.abs(player.scale.x);
+        player.facingRight = true;
     });
 
     // Jump
@@ -128,43 +242,29 @@ scene("game", (level = 0) => {
     onKeyDown("down", () => {
         if (!player.isSquatting && player.isGrounded()) {
             player.isSquatting = true;
-            player.scaleTo(1, 0.5);
         }
     });
-    
+
     onKeyDown("s", () => {
         if (!player.isSquatting && player.isGrounded()) {
             player.isSquatting = true;
-            player.scaleTo(1, 0.5);
         }
     });
 
     onKeyRelease("down", () => {
         if (player.isSquatting) {
             player.isSquatting = false;
-            player.scaleTo(1, 1);
-        }
-    });
-    
-    onKeyRelease("s", () => {
-        if (player.isSquatting) {
-            player.isSquatting = false;
-            player.scaleTo(1, 1);
         }
     });
 
-    // Camera follows player
-    camScale(vec2(1.5));
-    
-    onUpdate(() => {
-        // Camera follows player horizontally
-        camPos(vec2(player.pos.x, 360));
-        
-        // Reset if player falls
-        if (player.pos.y > 1000) {
-            go("game", level);
+    onKeyRelease("s", () => {
+        if (player.isSquatting) {
+            player.isSquatting = false;
         }
     });
+
+    // Camera scale
+    camScale(vec2(1.5));
 
     // Add instructions
     add([
