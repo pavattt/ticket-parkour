@@ -48,22 +48,29 @@ loadSprite("ticket", "assets/ticket.png");
 const LEVELS = [
     [
         "                                                                                ",
+        "                                 T T T                                          ",
+        "                                ======                                          ",
         "                                                                                ",
+        "          T T                                      T T                          ",
+        "         =====                                    =====                         ",
         "                                                                                ",
+        "                       T T T T                                                  ",
+        "                      =========                                                 ",
         "                                                                                ",
-        "                                                                                ",
+        "    T T T                              T T T                                    ",
+        "   ======                             ======                                    ",
         "                                                                                ",
         "                    T T T T                                                     ",
         "                   ========                                                     ",
         "                                           T T                                  ",
-        "                                          ====                                 ",
+        "                                          ====                                  ",
         "               T                                                                ",
         "              ===                                   T T T                       ",
         "                          T                              ===                    ",
         "                         ===                                                    ",
-        "                                    ==   T          ==                         ",
+        "                                    ==   T          ==                          ",
         "        ===       T                                              T T T          ",
-        "                    ==                                          ====           ",
+        "                    ==                                          ====            ",
         "   T T T                    ==                                                  ",
         "################################################################################",
         "################################################################################",
@@ -230,8 +237,8 @@ scene("game", (level = 0) => {
             player.isDoubleJumping = false;
         }
 
-        // Camera follows player horizontally
-        camPos(vec2(player.pos.x, 360));
+        // Camera follows player horizontally and vertically
+        camPos(vec2(player.pos.x, player.pos.y));
 
         // Reset if player falls
         if (player.pos.y > 1000) {
