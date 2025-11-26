@@ -535,26 +535,26 @@ scene("game", (level = 0, restoreX = null, restoreY = null, restoreTickets = nul
     // Camera scale
     camScale(vec2(1.5));
 
-    // Add instructions
-    add([
-        text("Arrow Keys/WASD: Move | Space/Up/W: Jump | Down/S: Squat", {
-            size: 16,
-        }),
-        pos(640, 20),
-        anchor("center"),
-        fixed(),
-        color(255, 255, 255),
-    ]);
-
     // Add ticket counter display
     const ticketDisplay = add([
         text("Tickets: " + ticketsCollected + " / " + totalTickets, {
             size: 24,
         }),
-        pos(50, 60),
+        pos(50, 30),
         fixed(),
         color(255, 215, 0),
         "ticketDisplay",
+    ]);
+
+    // Add money display
+    const moneyDisplay = add([
+        text("Money: £" + playerMoney.toFixed(2), {
+            size: 24,
+        }),
+        pos(50, 60),
+        fixed(),
+        color(0, 0, 0),
+        "moneyDisplay",
     ]);
 
     // Add lives display
@@ -599,22 +599,11 @@ scene("game", (level = 0, restoreX = null, restoreY = null, restoreTickets = nul
         "hpText",
     ]);
 
-    // Add money display
-    const moneyDisplay = add([
-        text("Money: £" + playerMoney.toFixed(2), {
-            size: 24,
-        }),
-        pos(50, 150),
-        fixed(),
-        color(0, 200, 0),
-        "moneyDisplay",
-    ]);
-
     // Add parachute indicator if owned
     if (hasParachute) {
         add([
             text("[P] Parachute", { size: 18 }),
-            pos(50, 180),
+            pos(50, 145),
             fixed(),
             color(200, 200, 255),
             "parachuteIndicator",
@@ -647,7 +636,7 @@ scene("game", (level = 0, restoreX = null, restoreY = null, restoreTickets = nul
         color(255, 105, 180),
         z(50),
         opacity(0.9),
-        { targetPos: boxOfficePos, label: "B" },
+        { targetPos: boxOfficePos, label: "B", flashTimer: 0 },
         "dirArrow",
     ]);
 
@@ -659,7 +648,7 @@ scene("game", (level = 0, restoreX = null, restoreY = null, restoreTickets = nul
         color(0, 100, 200),
         z(50),
         opacity(0.9),
-        { targetPos: tescoPos, label: "T" },
+        { targetPos: tescoPos, label: "T", flashTimer: 0 },
         "dirArrow",
     ]);
 
@@ -748,6 +737,10 @@ scene("game", (level = 0, restoreX = null, restoreY = null, restoreTickets = nul
         arrow.text = arrow.label + " " + arrowChar;
         arrow.pos.x = screenX;
         arrow.pos.y = screenY;
+
+        // Flash effect
+        arrow.flashTimer += dt() * 6;
+        arrow.opacity = 0.5 + Math.sin(arrow.flashTimer) * 0.5;
     });
 
     // Function to take damage
@@ -1294,7 +1287,7 @@ scene("start", () => {
 
     // Title
     add([
-        text("Ticket Runner", { size: 72 }),
+        text("Ticket Parkour", { size: 72 }),
         pos(center().x, 80),
         anchor("center"),
         color(255, 215, 0),
@@ -1318,9 +1311,8 @@ scene("start", () => {
 
     // Control instructions
     const controls = [
-        "Arrow Keys / WASD - Move",
-        "Space / W / Up - Jump (press again for double jump)",
-        "Down / S - Crouch",
+        "WASD - Move",
+        "W - Jump (press again for double jump)",
         "P - Deploy parachute (when owned)",
     ];
 
@@ -1341,20 +1333,41 @@ scene("start", () => {
         color(255, 200, 100),
     ]);
 
-    const tips = [
-        "B - Box Office: Sell your tickets for money",
-        "T - Tesco: Buy items like the parachute",
-        "Watch out for fall damage from high drops!",
-    ];
+    // B indicator
+    add([
+        text("B >", { size: 24 }),
+        pos(center().x - 180, 490),
+        anchor("center"),
+        color(255, 105, 180),
+    ]);
+    add([
+        text("Box Office: Sell your tickets for money", { size: 18 }),
+        pos(center().x + 60, 490),
+        anchor("center"),
+        color(200, 200, 220),
+    ]);
 
-    tips.forEach((tip, i) => {
-        add([
-            text(tip, { size: 18 }),
-            pos(center().x, 490 + i * 30),
-            anchor("center"),
-            color(200, 200, 220),
-        ]);
-    });
+    // T indicator
+    add([
+        text("T >", { size: 24 }),
+        pos(center().x - 180, 525),
+        anchor("center"),
+        color(0, 100, 200),
+    ]);
+    add([
+        text("Tesco: Buy items like the parachute", { size: 18 }),
+        pos(center().x + 60, 525),
+        anchor("center"),
+        color(200, 200, 220),
+    ]);
+
+    // Fall damage warning
+    add([
+        text("Watch out for fall damage from high drops!", { size: 18 }),
+        pos(center().x, 565),
+        anchor("center"),
+        color(255, 100, 100),
+    ]);
 
     // Start button
     add([
