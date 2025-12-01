@@ -71,6 +71,9 @@ let playerMoney = 0;
 // Player's inventory (persists across levels)
 let hasParachute = false;
 
+// Track collected ticket positions per level (persists across scene transitions)
+let collectedTicketsPerLevel = {};
+
 // Define the level
 const LEVELS = [
     [
@@ -161,17 +164,8 @@ const levelConfig = {
             anchor("center"),
             "ground",
         ],
-        "T": () => [
-            sprite("ticket"),
-            area(),
-            anchor("center"),
-            scale(0.06),
-            {
-                spinTimer: 0,
-                spinSpeed: 3,
-            },
-            "ticket",
-        ],
+        // Tickets are spawned manually in the game scene to support persistence
+        "T": () => [],
         "B": () => [
             sprite("highvibes"),
             area(),
@@ -199,6 +193,11 @@ scene("game", (level = 0, restoreX = null, restoreY = null, restoreTickets = nul
     // Score counter
     let ticketsCollected = restoreTickets !== null ? restoreTickets : 0;
 
+    // Initialize collected tickets for this level if not exists
+    if (!collectedTicketsPerLevel[level]) {
+        collectedTicketsPerLevel[level] = [];
+    }
+
     // Count total tickets in level
     let totalTickets = 0;
     for (const row of LEVELS[level]) {
@@ -209,6 +208,35 @@ scene("game", (level = 0, restoreX = null, restoreY = null, restoreTickets = nul
 
     // Add the level
     const currentLevel = addLevel(LEVELS[level], levelConfig);
+
+    // Manually spawn tickets, skipping already collected ones
+    const tileWidth = 32;
+    const tileHeight = 32;
+    for (let row = 0; row < LEVELS[level].length; row++) {
+        for (let col = 0; col < LEVELS[level][row].length; col++) {
+            if (LEVELS[level][row][col] === "T") {
+                const ticketX = col * tileWidth;
+                const ticketY = row * tileHeight;
+                const ticketKey = `${ticketX},${ticketY}`;
+
+                // Only spawn if not already collected
+                if (!collectedTicketsPerLevel[level].includes(ticketKey)) {
+                    add([
+                        sprite("ticket"),
+                        pos(ticketX, ticketY),
+                        area(),
+                        anchor("center"),
+                        scale(0.06),
+                        {
+                            spinTimer: 0,
+                            spinSpeed: 3,
+                        },
+                        "ticket",
+                    ]);
+                }
+            }
+        }
+    }
 
     // Add the player with sprite animations
     const startX = restoreX !== null ? restoreX : 100;
@@ -835,6 +863,9 @@ scene("game", (level = 0, restoreX = null, restoreY = null, restoreTickets = nul
 
     // Collect tickets on collision
     player.onCollide("ticket", (ticket) => {
+        // Store the ticket's position in the global tracker
+        const ticketKey = `${Math.round(ticket.pos.x)},${Math.round(ticket.pos.y)}`;
+        collectedTicketsPerLevel[level].push(ticketKey);
         ticketsCollected++;
         ticketDisplay.text = "Tickets: " + ticketsCollected + " / " + totalTickets;
         play("ticket");
@@ -898,6 +929,8 @@ scene("gameover", () => {
     ]);
 
     onKeyPress("space", () => {
+        // Reset collected tickets for fresh game
+        collectedTicketsPerLevel = {};
         go("game", 0);
     });
 });
@@ -1394,11 +1427,13 @@ scene("start", () => {
 
     // Click to start
     onClick("startBtn", () => {
+        collectedTicketsPerLevel = {};
         go("game", 0);
     });
 
     // Also allow space to start
     onKeyPress("space", () => {
+        collectedTicketsPerLevel = {};
         go("game", 0);
     });
 });
